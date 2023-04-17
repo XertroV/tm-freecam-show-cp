@@ -1,0 +1,9 @@
+[meta]
+name     = "FreeCam: Show CP"
+author   = "XertroV"
+category = "RPG"
+version  = "0.1.0"
+
+[script]
+#__DEFINES__
+dependencies = ["VehicleState"]
