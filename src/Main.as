@@ -161,6 +161,8 @@ void Render() {
     auto cp = cast<CSmArenaClient>(app.CurrentPlayground);
     if (cp is null || cp.Arena is null) return;
 
+    if (S_OnlyShowInCam7 && !g_IsInFreeCam) return;
+
     if (wpCachedForMapUid != map.EdChallengeId) {
         CacheWaypoints(cp);
     }
@@ -177,6 +179,7 @@ void Render() {
         if (UI::Button("Sort by Distance")) {
             SortCPsByDistance();
         }
+        S_OnlyShowInCam7 = UI::Checkbox("Show window only when in cam 7", S_OnlyShowInCam7);
 
         if (UI::BeginChild("cp child")) {
             if(UI::BeginTable("cp-table", 6, UI::TableFlags::SizingFixedFit)) {
