@@ -2,9 +2,10 @@
 
 In cam 7: allows warping the camera to CPs. Intended as an RPG helper.
 
-todo: dist from camera?
-todo: UCI disable conditions
+This plugin can be disabled by a mapper in the same way that Unclaimed Checkpoint Indicator can be disabled:
 
+* Set the start block's order to 65537
+* or, Add `/uci hide` to the map comment
 
 License: Public Domain
 
