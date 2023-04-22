@@ -2,6 +2,10 @@
 
 In cam 7: allows warping the camera to CPs. Intended as an RPG helper.
 
+todo: dist from camera?
+todo: UCI disable conditions
+
+
 License: Public Domain
 
 Authors: XertroV

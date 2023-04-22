@@ -16,6 +16,8 @@ uint lastViewTime = 0;
 uint lastViewIndex = 0;
 AnimMgr@ CamAnimMgr = AnimMgr(true);
 
+const float TAU = Math::PI * 2.;
+
 class WaypointInfo {
     vec3 pos;
     uint order;
@@ -24,6 +26,8 @@ class WaypointInfo {
     uint index;
     string label;
     float dist;
+    float camDist;
+    bool drawCpIndicator = false;
 
     WaypointInfo(uint index, CGameScriptMapLandmark@ lm) {
         this.index = index;
@@ -34,6 +38,7 @@ class WaypointInfo {
 
     void UpdateDistToPlayer() {
         dist = (g_PlayerPos - pos).Length();
+        camDist = (g_CameraPos - pos).Length();
     }
 
     void DrawTableRow() {
@@ -54,6 +59,8 @@ class WaypointInfo {
         UpdateDistToPlayer();
         UI::TableNextColumn();
         UI::Text(Text::Format("%.1f", dist));
+        UI::TableNextColumn();
+        UI::Text(Text::Format("\\$999%.1f", camDist));
 
         UI::TableNextColumn();
         UI::SetNextItemWidth(UI::GetContentRegionAvail().x - 10.);
@@ -65,35 +72,111 @@ class WaypointInfo {
             startnew(CoroutineFunc(ViewMe));
         }
         UI::EndDisabled();
+        UI::SameLine();
     }
 
     float viewExtraYaw = 0.0;
-    uint animDuration = 500;
     uint lastAnimStart = 0;
+
+
+    float g_StartingHAngle = 0;
+    float g_StartingVAngle = 0;
+    float g_EndingHAngle = 0;
+    float g_EndingVAngle = 0;
+    float g_StartingTargetDist = 0;
+    float g_EndingTargetDist = 0;
+    vec3 g_StartingPos();
+    vec3 g_EndingPos();
+
 
     void ViewMe() {
         if (g_FreeCamControl is null) return;
 
         auto fc = g_FreeCamControl;
+        // when true, rotate around a cp rather than snapping / zooming to it
         bool animInstead = index == lastViewIndex && (Time::Now - lastViewTime) < 3000;
         lastViewIndex = index;
         lastViewTime = Time::Now;
 
+        @CamAnimMgr = AnimMgr(false, animDuration);
+
         if (!animInstead) {
-            fc.m_TargetPos = pos;
-            fc.m_TargetIsEnabled = true;
-            fc.m_Radius = 40.;
-            fc.m_Pitch = 0.8;
-            fc.m_Yaw = -0.8 + viewExtraYaw;
+            auto camToCp = pos - g_CameraPos;
+            g_StartingPos = pos;
+            g_EndingPos = pos;
+
+            g_StartingTargetDist = camToCp.Length();
+            g_EndingTargetDist = 40.;
+
+            auto dir = camToCp.Normalized();
+            auto startYP = DirToLookYawPitch(dir);
+            g_StartingHAngle = fc.m_Yaw; // startYP.x;
+            g_StartingVAngle = fc.m_Pitch; // startYP.y;
+
+            // g_EndingHAngle = -0.8 + viewExtraYaw;
+            g_EndingHAngle = startYP.x;
+            g_EndingVAngle = startYP.y;
+
+            // fc.m_Radius = 40.;
+            // fc.m_Pitch = 0.8;
+            // fc.m_Yaw = -0.8 + viewExtraYaw;
             viewExtraYaw += Math::PI / 2.0;
             // allow cam to update
-            yield();
-            @fc = g_FreeCamControl;
-            // copy calculated location so we don't have to worry about doing trig
-            fc.m_FreeVal_Loc_Translation = fc.Pos;
-            fc.m_TargetIsEnabled = false;
-        } else {
+            // yield();
+            // @fc = g_FreeCamControl;
+            // // copy calculated location so we don't have to worry about doing trig
+            // fc.m_FreeVal_Loc_Translation = fc.Pos;
+            // fc.m_TargetIsEnabled = false;
+
+            auto animStarted = Time::Now;
+            lastAnimStart = animStarted;
+            // animate rotation first
+
+            @CamAnimMgr = AnimMgr(false, animDuration / 2);
+
+            while (!CamAnimMgr.IsDone && g_IsInFreeCam) {
+                if (lastAnimStart != animStarted) {
+                    // another animation is going on, so let it handle everything.
+                    return;
+                }
+                CamAnimMgr.Update(true);
+                g_FreeCamControl.m_Pitch = SimplifyRadians(AngleLerp(g_StartingVAngle, g_EndingVAngle, CamAnimMgr.t));
+                g_FreeCamControl.m_Yaw = SimplifyRadians(AngleLerp(g_StartingHAngle, g_EndingHAngle, CamAnimMgr.t));
+                yield();
+            }
+
+
+            g_StartingHAngle = startYP.x;
+            g_StartingVAngle = startYP.y;
+
+            g_EndingHAngle = startYP.x;
+            g_EndingVAngle = Math::Clamp(startYP.y, 0.3, 0.8);
+
+            fc.m_TargetPos = pos;
+            fc.m_TargetIsEnabled = true;
+
             @CamAnimMgr = AnimMgr(false, animDuration);
+
+
+            while (!CamAnimMgr.IsDone && g_IsInFreeCam) {
+                if (lastAnimStart != animStarted) {
+                    // another animation is going on, so let it handle everything.
+                    return;
+                }
+                CamAnimMgr.Update(true);
+
+                g_FreeCamControl.m_Radius = Math::Lerp(g_StartingTargetDist, g_EndingTargetDist, CamAnimMgr.t);
+                g_FreeCamControl.m_Pitch = SimplifyRadians(AngleLerp(g_StartingVAngle, g_EndingVAngle, CamAnimMgr.t));
+                g_FreeCamControl.m_Yaw = SimplifyRadians(AngleLerp(g_StartingHAngle, g_EndingHAngle, CamAnimMgr.t));
+
+                yield();
+            }
+
+            if (g_IsInFreeCam) {
+                g_FreeCamControl.m_FreeVal_Loc_Translation = g_FreeCamControl.Pos;
+                g_FreeCamControl.m_TargetIsEnabled = false;
+            }
+        } else {
             g_FreeCamControl.m_TargetPos = pos;
             g_FreeCamControl.m_TargetIsEnabled = true;
             auto origYaw = fc.m_Yaw;
@@ -104,7 +187,7 @@ class WaypointInfo {
             lastAnimStart = animStarted;
 
             while (!CamAnimMgr.IsDone && g_IsInFreeCam) {
-                if (lastAnimStart != animStarted) {
+                if (lastAnimStart != animStarted || g_FreeCamControl is null) {
                     // another animation is going on, so let it handle everything.
                     return;
                 }
@@ -119,10 +202,80 @@ class WaypointInfo {
             }
         }
     }
+
+    vec2 DirToLookYawPitch(vec3 &in dir) {
+        auto xz = (dir * vec3(1, 0, 1)).Normalized();
+        auto pitch = -Math::Asin(Math::Dot(dir, vec3(0, 1, 0)));
+        auto yaw = Math::Asin(Math::Dot(xz, vec3(1, 0, 0)));
+        if (Math::Dot(xz, vec3(0, 0, -1)) > 0) {
+            yaw = - yaw - Math::PI;
+            trace('alt case');
+        }
+        // auto lookUv = vec2(yaw, pitch) / Math::PI * 2.;
+        // return lookUv;
+        return vec2(yaw, pitch);
+    }
+
+    float AngleLerp(float start, float stop, float t) {
+        float diff = stop - start;
+        while (diff > Math::PI) { diff -= TAU; }
+        while (diff < -Math::PI) { diff += TAU; }
+        return start + diff * t;
+    }
+
+    float SimplifyRadians(float a) {
+        uint count = 0;
+        while (Math::Abs(a) > TAU / 2.0 && count < 100) {
+            a += (a < 0 ? 1. : -1.) * TAU;
+            count++;
+        }
+        return a;
+    }
 }
 
 string wpCachedForMapUid;
 WaypointInfo@[] waypoints;
+
+enum MapperSetting {
+    None = 0, Ordered = 65536, Disabled = 65537, XDD = 65539
+}
+
+MapperSetting currMapCPIndicatorSetting = MapperSetting::None;
+
+MapperSetting GetMapCPIndicatorSetting(CSmArena@ Arena, CGameCtnChallenge@ Map) {
+    auto comment = string(Map.Comments).ToLower();
+    if (comment.Contains('/uci order')) {
+        return MapperSetting::Ordered;
+    } else if (comment.Contains('/uci hide')) {
+        return MapperSetting::Disabled;
+    } else if (comment.Contains('/uci xdd')) {
+        return MapperSetting::XDD;
+    }
+
+    uint StartOrder = 0;
+    for (uint i = 0; i < Arena.MapLandmarks.Length; i++) {
+        auto lm = Arena.MapLandmarks[i];
+        // starting block
+        if (lm.Waypoint is null && lm.Order > 65535) {
+            StartOrder = lm.Order;
+            break;
+        }
+        if (lm.Waypoint is null) continue;
+        // multilap -- we keep going b/c maybe there's a starting block
+        if (lm.Waypoint.IsMultiLap && lm.Order > 65535) {
+            StartOrder = lm.Order;
+            continue;
+        }
+    }
+
+    if (StartOrder > 65535) {
+        if ((StartOrder - 65535) & 2 > 0) return MapperSetting::Disabled;
+        if ((StartOrder - 65535) & 1 > 0) return MapperSetting::Ordered;
+        if ((StartOrder - 65535) & 4 > 0) return MapperSetting::XDD;
+    }
+
+    return MapperSetting::None;
+}
 
 void CacheWaypoints(CSmArenaClient@ cp) {
     waypoints.RemoveRange(0, waypoints.Length);
@@ -133,6 +286,12 @@ void CacheWaypoints(CSmArenaClient@ cp) {
     if (cp.Arena.MapLandmarks.Length == 0) return;
 
     wpCachedForMapUid = cp.Map.EdChallengeId;
+    currMapCPIndicatorSetting = GetMapCPIndicatorSetting(cp.Arena, cp.Map);
+    if (currMapCPIndicatorSetting == MapperSetting::Disabled) {
+        // disabled by map so return immediately
+        trace('Not caching CPs due to map setting: ' + tostring(currMapCPIndicatorSetting));
+        return;
+    }
 
     for (uint i = 0; i < cp.Arena.MapLandmarks.Length; i++) {
         waypoints.InsertLast(WaypointInfo(i, cp.Arena.MapLandmarks[i]));
@@ -179,14 +338,23 @@ void Render() {
         if (UI::Button("Sort by Distance")) {
             SortCPsByDistance();
         }
+        UI::SameLine();
+        UI::BeginDisabled();
+        UI::Text("Map CPI Setting: " + tostring(currMapCPIndicatorSetting));
+        UI::EndDisabled();
         S_OnlyShowInCam7 = UI::Checkbox("Show window only when in cam 7", S_OnlyShowInCam7);
 
+        bool disabled = currMapCPIndicatorSetting == MapperSetting::Disabled;
+
         if (UI::BeginChild("cp child")) {
-            if(UI::BeginTable("cp-table", 6, UI::TableFlags::SizingFixedFit)) {
+            if (disabled) {
+                UI::Text("Plugin disabled by mapper request.");
+            } else if(UI::BeginTable("cp-table", 7, UI::TableFlags::SizingFixedFit)) {
                 UI::TableSetupColumn("#", UI::TableColumnFlags::WidthFixed, 30.);
                 UI::TableSetupColumn("Type", UI::TableColumnFlags::WidthFixed, 140.);
-                UI::TableSetupColumn("##Order", UI::TableColumnFlags::WidthFixed, 30.);
+                UI::TableSetupColumn("##Order", UI::TableColumnFlags::WidthFixed, 40.);
                 UI::TableSetupColumn("Dist", UI::TableColumnFlags::WidthFixed, 60.);
+                UI::TableSetupColumn("Cam D.", UI::TableColumnFlags::WidthFixed, 60.);
                 UI::TableSetupColumn("Label", UI::TableColumnFlags::WidthStretch);
                 UI::TableSetupColumn("", UI::TableColumnFlags::WidthFixed);
 

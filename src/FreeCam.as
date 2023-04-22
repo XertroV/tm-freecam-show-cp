@@ -22,6 +22,7 @@ CGameControlCameraFree@ GetFreeCamControls(CGameCtnApp@ app) {
 bool g_IsInFreeCam = false;
 CGameControlCameraFree@ g_FreeCamControl = null;
 vec3 g_PlayerPos = vec3();
+vec3 g_CameraPos = vec3();
 
 void RenderEarly() {
     if (!ShowWindow) {
@@ -33,6 +34,7 @@ void RenderEarly() {
     @g_FreeCamControl = GetFreeCamControls(app);
     g_IsInFreeCam = g_FreeCamControl !is null;
     g_PlayerPos = vec3();
+    g_CameraPos = Camera::GetCurrentPosition();
 
     auto cp = cast<CSmArenaClient>(app.CurrentPlayground);
     if (app.GameScene is null || cp is null)
