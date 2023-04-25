@@ -309,15 +309,14 @@ bool WaypointDistLess(const WaypointInfo@ &in a, const WaypointInfo@ &in b) {
 */
 void RenderInterface() {
     if (!ShowWindow) return;
-
-    UpdateFreeCam_RenderEarly();
-
     auto app = cast<CGameManiaPlanet>(GetApp());
     auto map = app.RootMap;
     if (map is null) return;
     auto cp = cast<CSmArenaClient>(app.CurrentPlayground);
     if (cp is null || cp.Arena is null) return;
     if (app.GameScene is null) return;
+
+    UpdateFreeCam_RenderEarly();
 
     if (S_OnlyShowInCam7 && !g_IsInFreeCam) return;
 
