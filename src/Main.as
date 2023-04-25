@@ -1,9 +1,8 @@
 const string PluginIcon = Icons::Search;
 const string MenuTitle = "\\$af3" + PluginIcon + "\\$z " + Meta::ExecutingPlugin().Name;
 
-// show the window immediately upon installation
 [Setting hidden]
-bool ShowWindow = true;
+bool ShowWindow = false;
 
 /** Render function called every frame intended only for menu items in `UI`. */
 void RenderMenu() {
@@ -209,10 +208,7 @@ class WaypointInfo {
         auto yaw = Math::Asin(Math::Dot(xz, vec3(1, 0, 0)));
         if (Math::Dot(xz, vec3(0, 0, -1)) > 0) {
             yaw = - yaw - Math::PI;
-            trace('alt case');
         }
-        // auto lookUv = vec2(yaw, pitch) / Math::PI * 2.;
-        // return lookUv;
         return vec2(yaw, pitch);
     }
 
@@ -311,14 +307,17 @@ bool WaypointDistLess(const WaypointInfo@ &in a, const WaypointInfo@ &in b) {
 
 /** Render function called every frame.
 */
-void Render() {
+void RenderInterface() {
     if (!ShowWindow) return;
+
+    UpdateFreeCam_RenderEarly();
 
     auto app = cast<CGameManiaPlanet>(GetApp());
     auto map = app.RootMap;
     if (map is null) return;
     auto cp = cast<CSmArenaClient>(app.CurrentPlayground);
     if (cp is null || cp.Arena is null) return;
+    if (app.GameScene is null) return;
 
     if (S_OnlyShowInCam7 && !g_IsInFreeCam) return;
 
@@ -326,7 +325,7 @@ void Render() {
         CacheWaypoints(cp);
     }
 
-    vec2 size = vec2(450, 300);
+    vec2 size = vec2(550, 300);
     vec2 pos = (vec2(Draw::GetWidth(), Draw::GetHeight()) - size) / 2.;
     UI::SetNextWindowSize(int(size.x), int(size.y), UI::Cond::FirstUseEver);
     UI::SetNextWindowPos(int(pos.x), int(pos.y), UI::Cond::FirstUseEver);

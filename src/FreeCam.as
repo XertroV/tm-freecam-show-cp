@@ -24,17 +24,29 @@ CGameControlCameraFree@ g_FreeCamControl = null;
 vec3 g_PlayerPos = vec3();
 vec3 g_CameraPos = vec3();
 
-void RenderEarly() {
+bool updateFreeCamFirstDone = false;
+
+// don't use render early here b/c we call Camera::
+void UpdateFreeCam_RenderEarly() {
     if (!ShowWindow) {
         @g_FreeCamControl = null;
         g_IsInFreeCam = false;
         return;
+    }
+
+    if (!updateFreeCamFirstDone) {
+        trace('Updating FreeCam stuff -- first run.');
     }
     auto app = GetApp();
     @g_FreeCamControl = GetFreeCamControls(app);
     g_IsInFreeCam = g_FreeCamControl !is null;
     g_PlayerPos = vec3();
     g_CameraPos = Camera::GetCurrentPosition();
+
+    if (!updateFreeCamFirstDone) {
+        trace('Done updating FreeCam stuff.');
+        updateFreeCamFirstDone = true;
+    }
 
     auto cp = cast<CSmArenaClient>(app.CurrentPlayground);
     if (app.GameScene is null || cp is null)
