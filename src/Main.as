@@ -35,6 +35,14 @@ class WaypointInfo {
         tag = lm.Tag;
     }
 
+    // fake waypoint, useful for moving the cam to arbitrary locations
+    WaypointInfo(vec3 pos, const string &in tag = "Car") {
+        index = 0;
+        this.pos = pos;
+        order = 0;
+        this.tag = tag;
+    }
+
     void UpdateDistToPlayer() {
         dist = (g_PlayerPos - pos).Length();
         camDist = (g_CameraPos - pos).Length();
@@ -333,13 +341,22 @@ void RenderInterface() {
         UI::AlignTextToFramePadding();
         UI::Text("FreeCam detected: " + g_IsInFreeCam);
         UI::SameLine();
-        if (UI::Button("Sort by Distance")) {
+        UI::TextDisabled("Map CPI Setting: " + tostring(currMapCPIndicatorSetting));
+        if (g_IsInFreeCam) {
+            UI::SameLine();
+            g_FreeCamControl.m_TargetIsEnabled = UI::Checkbox("Use Target Mode (like editor)", g_FreeCamControl.m_TargetIsEnabled);
+        }
+
+        if (UI::Button("Sort CPs by Distance")) {
             SortCPsByDistance();
         }
         UI::SameLine();
-        UI::BeginDisabled();
-        UI::Text("Map CPI Setting: " + tostring(currMapCPIndicatorSetting));
+        UI::BeginDisabled(!g_IsInFreeCam);
+        if (UI::Button("View Car")) {
+            startnew(CoroutineFunc(WaypointInfo(g_PlayerPos).ViewMe));
+        }
         UI::EndDisabled();
+        UI::SameLine();
         S_OnlyShowInCam7 = UI::Checkbox("Show window only when in cam 7", S_OnlyShowInCam7);
 
         bool disabled = currMapCPIndicatorSetting == MapperSetting::Disabled;
