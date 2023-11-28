@@ -1,4 +1,6 @@
-const uint ActiveCamControlOffset = 0x68;
+// pre 2023-11-21: 0x68
+// 2023-11-21: 0x80
+const uint ActiveCamControlOffset = 0x80;
 
 uint16 GetOffset(const string &in className, const string &in memberName) {
     // throw exception when something goes wrong.
