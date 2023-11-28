@@ -1,11 +1,16 @@
 const string PluginIcon = Icons::Search;
 const string MenuTitle = "\\$af3" + PluginIcon + "\\$z " + Meta::ExecutingPlugin().Name;
 
+void Main() {
+    startnew(CheckAndSetGameVersionSafe);
+}
+
 [Setting hidden]
 bool ShowWindow = false;
 
 /** Render function called every frame intended only for menu items in `UI`. */
 void RenderMenu() {
+    if (!GameVersionSafe) return;
     if (UI::MenuItem(MenuTitle, "", ShowWindow)) {
         ShowWindow = !ShowWindow;
     }
@@ -316,6 +321,7 @@ bool WaypointDistLess(const WaypointInfo@ &in a, const WaypointInfo@ &in b) {
 /** Render function called every frame.
 */
 void RenderInterface() {
+    if (!GameVersionSafe) return;
     if (!ShowWindow) return;
     auto app = cast<CGameManiaPlanet>(GetApp());
     auto map = app.RootMap;
