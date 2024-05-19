@@ -314,7 +314,7 @@ void SortCPsByDistance() {
     waypoints.Sort(WaypointDistLess);
 }
 
-bool WaypointDistLess(const WaypointInfo@ &in a, const WaypointInfo@ &in b) {
+bool WaypointDistLess(const WaypointInfo@ const &in a, const WaypointInfo@ const &in b) {
     return a.dist < b.dist;
 }
 
